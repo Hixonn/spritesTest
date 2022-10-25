@@ -1,81 +1,192 @@
 using Raylib_cs;
+using System;
 using System.Numerics;
 using System.Timers;
 using System.Threading;
+
+// Vector2 dinoPosition;
+// Vector2 mousePosition;
+
+// Vector2 direction = mousePosition - dinoPosition;
+
+// float speed = 4;
+// direction = Vector2.Normalize(direction) * speed;
+
+// Vector2 projectilePosition;
+
+// projectilePosition += direction;
+
+// projectilePosition.X += direction.X;
+// projectilePosition.Y += direction.Y;
+
 
 namespace spritesTest
 {
     public class Sprite
     {
         Texture2D pic;
-        int x;
-        int y;
+        public float X { get; set; }
+        public float Y { get; set; }
+        int scale;
+        int globalDelay;
         int onFrame;
-        int f = 1;
+        int dirX = 1;
+        int dirY = 1;
+        public Rectangle hitBox;
 
 
-        public Sprite(Texture2D _pic, int _x, int _y)
+        public Sprite(Texture2D _pic, int _x, int _y, int _scale, int _globalDelay = 0)
         {
             pic = _pic;
-            x = _x;
-            y = _y;
+            X = _x;
+            Y = _y;
+            scale = _scale;
+            globalDelay = _globalDelay;
         }
+
+
+
+
+        public bool DirectionX()
+        {
+            if (Raylib.IsKeyDown(KeyboardKey.KEY_A) && !Raylib.IsKeyDown(KeyboardKey.KEY_D)) { dirX = -1; return true; }
+            else if (Raylib.IsKeyDown(KeyboardKey.KEY_D) && !Raylib.IsKeyDown(KeyboardKey.KEY_A)) { dirX = 1; return true; }
+            else return false;
+        }
+        public bool DirectionY()
+        {
+            if (Raylib.IsKeyDown(KeyboardKey.KEY_W) && !Raylib.IsKeyDown(KeyboardKey.KEY_S)) { dirY = -1; return true; }
+            else if (!Raylib.IsKeyDown(KeyboardKey.KEY_W) && Raylib.IsKeyDown(KeyboardKey.KEY_S)) { dirY = 1; return true; }
+            else return false;
+        }
+
+
 
         public void DisplayAnimFrame(Texture2D _pic, int dx, int dy, int spriteID, int w = 24, int h = 24)
         {
-            if (Raylib.IsKeyDown(KeyboardKey.KEY_LEFT)) f = -1;
-            else if (Raylib.IsKeyDown(KeyboardKey.KEY_RIGHT)) f = 1;
-
-
             int x = (spriteID % w) * w;
             int y = (spriteID / w) * w;
-            Rectangle source = new Rectangle(x, y, w * f, h);
-            Rectangle dest = new Rectangle(dx, dy, w * 20, h * 20);
+
+            DirectionX();
+            DirectionY();
+
+            Rectangle source = new Rectangle(x, y, w * dirX, h);
+            Rectangle dest = new Rectangle(dx + (source.width * dirX), dy, w * scale, h * scale);
+            hitBox = new Rectangle(dest.x + 50, dest.y + 40, dest.width - 100, dest.height - 55);
             Raylib.DrawTexturePro(pic, source, dest, Vector2.Zero, 0.0f, Color.WHITE);
+            Raylib.DrawRectangleRec(hitBox, Color.RED);
         }
 
-        public void AnimPlay(int startFrame, int endFrame)
+        int timesDisplayed = 0;
+        bool nextFrame;
+        public void AnimPlay(int startFrame, int endFrame, int _speed, int delayTimes)
         {
+
+            if (timesDisplayed == delayTimes)
+            {
+                nextFrame = true;
+                timesDisplayed = 0;
+            }
+            else if (timesDisplayed > delayTimes)
+            {
+                timesDisplayed = delayTimes;
+            }
+            else
+            {
+                nextFrame = false;
+                timesDisplayed++;
+            }
+
+
             if (startFrame == endFrame)
             {
                 onFrame = startFrame;
-                System.Console.WriteLine(onFrame);
+
             }
-            else if (onFrame < startFrame || onFrame > endFrame)
+            else if (nextFrame == true)
             {
-                onFrame = startFrame;
-                System.Console.WriteLine(onFrame);
+                if (onFrame < startFrame || onFrame > endFrame)
+                {
+
+                    onFrame = startFrame;
+
+
+                }
+                else if (onFrame < endFrame && onFrame > startFrame || onFrame == startFrame)
+                {
+
+                    onFrame++;
+
+                }
+                else if (onFrame == endFrame)
+                {
+                    onFrame = startFrame;
+
+                }
             }
-            else if (onFrame < endFrame && onFrame > startFrame || onFrame == startFrame)
+
+            if (_speed * dirX + hitBox.x >= 0 && _speed * dirX + hitBox.width + hitBox.x <= Raylib.GetScreenWidth())
             {
-                onFrame++;
-                System.Console.WriteLine(onFrame);
+                if (DirectionX() == true) X += _speed * dirX;
             }
-            else if (onFrame == endFrame)
+            else
             {
-                onFrame = startFrame;
-                System.Console.WriteLine(onFrame);
+                if (dirX == -1)
+                {
+                    X += hitBox.x * dirX;
+                }
+                else if (dirX == 1)
+                {
+                    X -= hitBox.x + hitBox.width - Raylib.GetScreenWidth();
+                }
             }
-            DisplayAnimFrame(pic, x, y, onFrame);
+
+            if (_speed * dirY + hitBox.y >= 0 && _speed * dirY + hitBox.height + hitBox.y <= Raylib.GetScreenHeight() + 5)
+            {
+                if (DirectionY() == true) Y += _speed * dirY;
+            }
+            else
+            {
+                if (dirY == -1)
+                {
+                    Y += hitBox.y * dirY;
+                }
+                else if (dirY == 1)
+                {
+                    Y -= hitBox.y + hitBox.height - Raylib.GetScreenHeight();
+                }
+            }
+
+            DisplayAnimFrame(pic, Convert.ToInt32(X), Convert.ToInt32(Y), onFrame);
         }
 
 
-        public void Idle()
+
+        public void Idle(int _speed = 0)
         {
-            AnimPlay(0, 3);
+            AnimPlay(0, 3, _speed * scale, 7);
         }
-        public void Walk()
+        public void Walk(int _speed = 2)
         {
-            AnimPlay(4, 9);
+            AnimPlay(4, 9, _speed + scale, globalDelay);
+        }
+        public void Run(int _speed = 3)
+        {
+            AnimPlay(18, 23, _speed + scale, 2);
+        }
+        public void Sneak(int _speed = 0)
+        {
+            AnimPlay(17, 17, _speed, globalDelay);
+        }
+        public void Stare(int _speed = 0)
+        {
+            AnimPlay(24, 24, _speed * scale, globalDelay);
+        }
+        public void Kick(int _speed = 0)
+        {
+            AnimPlay(10, 13, _speed * scale, globalDelay);
         }
 
-        public void Run()
-        {
-            AnimPlay(18, 23);
-        }
-        public void Stare()
-        {
-            AnimPlay(24, 24);
-        }
+
     }
 }
